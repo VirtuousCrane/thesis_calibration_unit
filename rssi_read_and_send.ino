@@ -11,80 +11,18 @@
 
 #include <WiFi.h>
 #include <HTTPClient.h>
+#include "src/network/wifi_request.h"
 
 #include <vector>
 
 /* WiFi Config */
 const char* ssid = "Shoukaku";
 const char* password = "00000000";
-const char* serverName = "http://192.168.70.23:8000/post_json";
+String serverName = "http://192.168.70.23:8000/post_json";
 
 /* BLE Config */
 int scanTime = 5; //In seconds
 BLEScan* pBLEScan;
-
-/* Internal HTTP Response Status */
-enum ResponseStatus {
-  Success,
-  Failure,
-  WiFiFailure,
-  None
-};
-
-/* Internal HTTP Response Class */
-class RequestResponse {
-
-  private:
-    /* Class Private Fields */
-    enum ResponseStatus rStatus;
-    String rData;
-
-    /* Function Declarations */
-    /// Sets the internal request status of the RequestResponse Object
-    void setStatus(ResponseStatus status) {
-      rStatus = status;
-    }
-
-  public:
-    RequestResponse() {
-      rStatus = None;
-      rData = "";
-    }
-
-    RequestResponse(ResponseStatus status, String data) {
-      rStatus = status;
-      rData = data;
-    }
-
-    RequestResponse(ResponseStatus status) {
-      rStatus = status;
-      rData = "";
-    }
-
-    /// Checks if the Request was made successfully
-    bool isSuccess() {
-      if (rStatus == Success) {
-        return true;
-      }
-      return false;
-    }
-
-    /// Gets the Status of the Request
-    ResponseStatus getStatus() {
-      return rStatus;
-    }
-
-    /// Sets the Response data
-    void setData(String d) {
-      rData = d;
-    }
-
-    /// Gets the Response data
-    String getData() {
-      return rData;
-    }
-
-};
 
 void setup() {
   Serial.begin(115200);
@@ -115,35 +53,40 @@ void loop() {
   Serial.println(foundDevices.getCount());
   printBLEResult(foundDevices);
   Serial.println("Scan done!");
+  Serial.println("JSON String: " + getJSONFromBLEResult(foundDevices));
+  wifi_request_post(serverName, getJSONFromBLEResult(foundDevices));
   pBLEScan->clearResults();   // delete results fromBLEScan buffer to release memory
-  post("placeholder");
   delay(2000);
 }
 
-/// Sends a post request
-RequestResponse post(String request_data) {
-  Serial.println("Initiating POST Request");
-  if (WiFi.status() != WL_CONNECTED) {
-    Serial.println("Wifi Not Connected");
-    return RequestResponse(WiFiFailure);
+/// Given a BLEScanResults object, Generate a JSON string
+String getJSONFromBLEResult(BLEScanResults &bleResults) {
+  int total_count = bleResults.getCount();
+  bool isFirst = true;
+  String JSON_String = "{\"beacons\":[";
+
+  for (int i = 0; i < total_count; i++) {
+    BLEAdvertisedDevice device = bleResults.getDevice(i);
+
+    if (!isPartOfNetwork(device)) {
+      continue;
+    }
+
+    if (!isFirst) {
+      JSON_String += ",";
+      isFirst = false;
+    }
+
+    JSON_String += "{\"macAddress\":\"";
+    JSON_String += device.getAddress().toString().c_str();
+    JSON_String += "\",";
+    JSON_String += "\"rssi\":";
+    JSON_String += device.getRSSI();
+    JSON_String += "}";
   }
+  JSON_String += "]}";
 
-  WiFiClient client;
-  HTTPClient http;
-
-  http.begin(client, serverName);
-
-  http.addHeader("Content-Type", "application/json");
-  // String httpRequestData = "p1=test";
-  String httpRequestData = "{\"p1\":\"test\"}";
-  int httpResponseCode = http.POST(httpRequestData);
-  http.end();
-
-  if (httpResponseCode >= 200 && httpResponseCode < 300) {
-    return RequestResponse(Success);
-  }
-  return RequestResponse(Failure);
-
+  return JSON_String;
 }
 
 /// Given a BLEScanResults object, print out all discovered BLE Devices
