@@ -18,7 +18,8 @@
 /* WiFi Config */
 const char* ssid = "Shoukaku";
 const char* password = "00000000";
-String serverName = "http://192.168.70.23:8000/post_json";
+// String serverName = "http://192.168.70.23:8000/post_json";
+String serverName = "http://192.168.70.23:8080/api/v1/beacon/calibrate";
 
 /* BLE Config */
 int scanTime = 5; //In seconds
