@@ -12,6 +12,7 @@
 #include <WiFi.h>
 #include <HTTPClient.h>
 #include "src/network/wifi_request.h"
+#include "src/network/mqtt_request.h"
 
 #include <vector>
 
@@ -20,6 +21,11 @@ const char* ssid = "Shoukaku";
 const char* password = "00000000";
 // String serverName = "http://192.168.70.23:8000/post_json";
 String serverName = "http://192.168.70.23:8080/api/v1/beacon/calibrate";
+
+/* MQTT Config */
+const char broker[] = "test.mosquitto.org";
+int port            = 1883;
+const char topic[]  = "KRUT/THA";
 
 /* BLE Config */
 int scanTime = 5; //In seconds
@@ -45,6 +51,9 @@ void setup() {
     Serial.print(".");
   }
   Serial.println("\nConnected to Wifi!");
+
+  /* MQTT Init */
+  mqtt_connect(broker, port);
 }
 
 void loop() {
@@ -56,6 +65,7 @@ void loop() {
   Serial.println("Scan done!");
   Serial.println("JSON String: " + getJSONFromBLEResult(foundDevices));
   wifi_request_post(serverName, getJSONFromBLEResult(foundDevices));
+  mqtt_send(topic, getJSONFromBLEResult(foundDevices));
   pBLEScan->clearResults();   // delete results fromBLEScan buffer to release memory
   delay(2000);
 }
