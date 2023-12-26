@@ -23,17 +23,6 @@ const char* serverName = "http://192.168.70.23:8000/post_json";
 int scanTime = 5; //In seconds
 BLEScan* pBLEScan;
 
-// /* BLE Device Discovered Callback */
-// class MyAdvertisedDeviceCallbacks: public BLEAdvertisedDeviceCallbacks {
-//     void onResult(BLEAdvertisedDevice advertisedDevice) {
-//       if (!advertisedDevice.getServiceUUID().equals(BLEUUID("422da7fb-7d15-425e-a65f-e0dbcc6f4c6a"))) {
-//         return;
-//       }
-//       // Serial.printf("Advertised Device: %s \n", advertisedDevice.toString().c_str());
-//       Serial.printf("Address: %s, RSSI: %i\n", advertisedDevice.getAddress().toString().c_str(), advertisedDevice.getRSSI());
-//     }
-// };
-
 /* Internal HTTP Response Status */
 enum ResponseStatus {
   Success,
@@ -97,46 +86,6 @@ class RequestResponse {
 
 };
 
-class BLEDeviceNode {
-  private:
-    BLEDeviceNode *prev;
-    BLEAdvertisedDevice device;
-  public:
-    BLEDeviceNode() {
-      prev = NULL;
-      device = BLEAdvertisedDevice();
-    }
-
-    BLEDeviceNode(BLEAdvertisedDevice d) {
-      prev = NULL;
-      device = d;
-    }
-
-    BLEDeviceNode(BLEDeviceNode *p, BLEAdvertisedDevice d) {
-      prev = p;
-      device = d;
-    }
-
-    BLEAdvertisedDevice getDevice() {
-      return device;
-    }
-
-    void setDevice(BLEAdvertisedDevice d) {
-      device = d;
-    }
-
-    BLEDeviceNode* getPrev() {
-      return prev;
-    }
-
-    bool isEmpty() {
-      if (prev == NULL && !device.haveRSSI()) {
-        return true;
-      }
-      return false;
-    }
-};
-
 void setup() {
   Serial.begin(115200);
   Serial.println("Scanning...");
@@ -164,16 +113,14 @@ void loop() {
   BLEScanResults foundDevices = pBLEScan->start(scanTime, false);
   Serial.print("Devices found: ");
   Serial.println(foundDevices.getCount());
-  BLEDeviceNode *head = filterBLEResult(foundDevices);
-  printBLEResult(head);
-  // printBLEResult(foundDevices);
+  printBLEResult(foundDevices);
   Serial.println("Scan done!");
   pBLEScan->clearResults();   // delete results fromBLEScan buffer to release memory
   post("placeholder");
-  deleteNodes(head);
   delay(2000);
 }
 
+/// Sends a post request
 RequestResponse post(String request_data) {
   Serial.println("Initiating POST Request");
   if (WiFi.status() != WL_CONNECTED) {
@@ -213,20 +160,6 @@ void printBLEResult(BLEScanResults &bleResults) {
   Serial.println("============================");
 }
 
-/// Given a BLEDeviceNode object, print out all discovered BLE Devices
-void printBLEResult(BLEDeviceNode *node) {
-  BLEDeviceNode *head = node;
-  Serial.println("============================");
-
-  while (head != NULL) {
-    BLEAdvertisedDevice device = head->getDevice();
-    Serial.printf("Address: %s\tRSSI: %i\n", device.getAddress().toString().c_str(), device.getRSSI());
-    head = head->getPrev();
-  }
-
-  Serial.println("============================");
-}
-
 /// Checks if our device has the correct Service UUID.
 /// The 'Correct' Service UUID is defined by the #define SERVICE_UUID clause at the top of the file
 bool isPartOfNetwork(BLEAdvertisedDevice &device) {
@@ -234,34 +167,4 @@ bool isPartOfNetwork(BLEAdvertisedDevice &device) {
     return true;
   }
   return false;
-}
-
-/// Filters BLE Devices and put them into a LinkedList.
-/// Returns the LinkedList node tail
-BLEDeviceNode* filterBLEResult(BLEScanResults &bleResults) {
-  int resultCount = bleResults.getCount();
-  BLEDeviceNode *head = NULL;
-
-  for (int i = 0; i < resultCount; i++) {
-    BLEAdvertisedDevice device = bleResults.getDevice(i);
-    if (!isPartOfNetwork(device)) {
-      continue;
-    }
-    
-    BLEDeviceNode *node = new BLEDeviceNode(head, device);
-    head = node;
-  } 
-  
-  return head;
-}
-
-/// Deletes LinkedList from memory
-void deleteNodes(BLEDeviceNode *node) {
-  BLEDeviceNode *head = node;
-
-  while (head != NULL) {
-    BLEDeviceNode *temp = head->getPrev();
-    delete head;
-    head = temp;
-  }
 }
