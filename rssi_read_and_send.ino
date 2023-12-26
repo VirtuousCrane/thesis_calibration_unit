@@ -11,8 +11,9 @@
 
 #include <WiFi.h>
 #include <HTTPClient.h>
-#include "src/network/wifi_request.h"
-#include "src/network/mqtt_request.h"
+// #include "src/network/wifi_request.h"
+// #include "src/network/mqtt_request.h"
+#include "src/dispatcher.h"
 
 #include <vector>
 
@@ -30,6 +31,9 @@ const char topic[]  = "KRUT/THA";
 /* BLE Config */
 int scanTime = 5; //In seconds
 BLEScan* pBLEScan;
+
+/* Request Dispatcher */
+RequestDispatcher request_dispatcher(broker, topic, DISPATCHER_MODE_MQTT);
 
 void setup() {
   Serial.begin(115200);
@@ -52,8 +56,11 @@ void setup() {
   }
   Serial.println("\nConnected to Wifi!");
 
-  /* MQTT Init */
-  mqtt_connect(broker, port);
+  /* Dispatcher Init */
+  while(!request_dispatcher.init()) {
+    Serial.println("Failed to connect to MQTT Broker. Retrying...");
+    delay(1500);
+  }
 }
 
 void loop() {
@@ -64,8 +71,9 @@ void loop() {
   printBLEResult(foundDevices);
   Serial.println("Scan done!");
   Serial.println("JSON String: " + getJSONFromBLEResult(foundDevices));
-  wifi_request_post(serverName, getJSONFromBLEResult(foundDevices));
-  mqtt_send(topic, getJSONFromBLEResult(foundDevices));
+  // wifi_request_post(serverName, getJSONFromBLEResult(foundDevices));
+  // mqtt_send(topic, getJSONFromBLEResult(foundDevices));
+  request_dispatcher.send_message(getJSONFromBLEResult(foundDevices));
   pBLEScan->clearResults();   // delete results fromBLEScan buffer to release memory
   delay(2000);
 }
