@@ -11,8 +11,6 @@
 
 #include <WiFi.h>
 #include <HTTPClient.h>
-// #include "src/network/wifi_request.h"
-// #include "src/network/mqtt_request.h"
 #include "src/dispatcher.h"
 
 #include <vector>
